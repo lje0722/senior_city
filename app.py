@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, make_response, render_template
+from flask import Flask, request, jsonify, make_response, render_template, Response
 import pandas as pd
 import json
 from flask_cors import CORS
@@ -876,8 +876,8 @@ def get_top_district():
                 """
         cursor.execute(query)
         result = cursor.fetchall()
-        
-        return jsonify(result)
+        response = json.dumps(result, ensure_ascii=False)
+        return Response(response, content_type = 'application/json; charset=utf-8')
     
     except Exception as e:
         return jsonify({'error' : str(e)}), 500
@@ -917,14 +917,15 @@ def get_top5_categories():
         for question, score in row.items():
             category = q_to_category.get(question)
             if category and score is not None:
-                category_scores[category] += score
+                category_scores[category] += float(score)
         if not category_scores:
             return jsonify({"top_categories" : []})
         
         top5 = sorted(category_scores.items(), key = lambda x: x[1], reverse=True)[:5]
         result = [{'category' : k, 'score' : round(v,2)} for k, v in top5]
-
-        return jsonify({'top_categories' : result})
+        response = json.dumps(result, ensure_ascii=False)
+        return Response(response, content_type = 'application/json; charset=utf-8')
+        
     
     except Exception as e:
         return jsonify({'error' : str(e)}), 500
