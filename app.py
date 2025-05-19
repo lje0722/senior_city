@@ -508,7 +508,7 @@ def district_top5():
                 ]
 
             # info 문구
-            if mode == "friendly" or mode == "unfriendly" or "category":
+            if mode in ["friendly", "unfriendly"]:
                 max_diff = -float("inf") if mode == "friendly" else float("inf")
                 target_cat = None
                 for cat in CATEGORY_COLUMNS:
@@ -517,6 +517,9 @@ def district_top5():
                         max_diff = diff
                         target_cat = cat
                 label = category_labels.get(target_cat, "")
+                info = f"{row['district']}는 {label} 동네입니다."
+            elif mode == "category":
+                label = category_labels.get(category_name, "")
                 info = f"{row['district']}는 {label} 동네입니다."
             else:
                 info = None
