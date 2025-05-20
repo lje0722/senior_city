@@ -56,7 +56,7 @@ CATEGORY_COLUMNS = {
 
 
 # 점수 계산 함수
-def calculate_scores(weights,byNum ):
+def calculate_scores(weights,byNum):
     features = list(weights.keys())
     weights_series = pd.Series(weights)
 
@@ -96,23 +96,7 @@ def recommend():
                     continue
 
         if not weights:
-            return jsonify({"error": "가중치 입력이 필요합니다."}), 400
-
-        #가중치 DB저장 추가 코드
-        try:
-            cursor = conn.cursor()
-            insert_query = """
-                            INSERT INTO question_weights
-                            (q1,q2,q3,q4,q5,q6,q7,q8,q9,q10)
-                            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                            """
-            questions = [f'q{i}' for i in range(1,11)]
-            values = tuple(float(request.args.get(q,0)) for q in questions)
-
-            cursor.execute(insert_query, values)
-            conn.commit()
-        except Exception as db_err:
-            print('가중치 저장 실패: ', db_err)
+            return jsonify({"error": "가중치 입력이 필요합니다."}), 400        
 
         # 반전해야 할 지표
         INVERTED_COLS = ["crime_rate", "senior_pedestrian_accidents", "steep_slope_count", "pm2.5_level"]
@@ -137,6 +121,36 @@ def recommend():
             .head(num)
             .to_dict(orient="records")
         )
+        # 여기서 district_ranking insert
+        top1 = result[0]["district"] if len(result) > 0 else None
+        top2 = result[1]["district"] if len(result) > 1 else None
+        top3 = result[2]["district"] if len(result) > 2 else None
+
+
+        cursor = conn.cursor()
+        insert_query = """
+            INSERT INTO district_ranking (top1, top2, top3)
+            VALUES (%s, %s, %s)
+        """
+        cursor.execute(insert_query, (top1, top2, top3))
+        conn.commit()
+
+        #가중치 DB저장 추가 코드
+        try:
+            cursor = conn.cursor()
+            insert_query = """
+                            INSERT INTO question_weights
+                            (q1,q2,q3,q4,q5,q6,q7,q8,q9,q10)
+                            VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                            """
+            # category 순서대로 뽑아야 함 (CATEGORY_COLUMNS 기준)
+            ordered_keys = list(CATEGORY_COLUMNS.keys())  # ['safety', 'walk', ..., 'air']
+            values = tuple(float(request.args.get(k, 0)) for k in ordered_keys)
+
+            cursor.execute(insert_query, values)
+            conn.commit()
+        except Exception as db_err:
+            print('가중치 저장 실패: ', db_err)
 
         response = make_response(json.dumps({"result": result}, ensure_ascii=False))
         response.headers["Content-Type"] = "application/json; charset=utf-8"
